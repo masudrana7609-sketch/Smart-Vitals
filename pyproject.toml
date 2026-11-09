@@ -3,7 +3,7 @@
 [tool.ruff]
 target-version = "py313"
 line-length = 120          # matches the starter notebook's style
-extend-exclude = ["dashboard/node_modules", "models"]
+extend-exclude = ["dashboard/node_modules", "models", "*.md"]
 
 [tool.ruff.lint]
 select = [
@@ -26,4 +26,5 @@ quote-style = "double"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "-ra"
