@@ -18,11 +18,11 @@
   "example_row": {
     "risk_level": 1.0,
     "diabetic": 0.0,
-    "heart_rate": 58.0,
-    "spo2": 97.3,
-    "systolic_bp": 108.0,
-    "diastolic_bp": 82.0,
-    "temperature": 37.1,
+    "heart_rate": 50.0,
+    "spo2": 96.0,
+    "systolic_bp": 103.0,
+    "diastolic_bp": 65.0,
+    "temperature": 36.7,
     "glucose": null
   }
 }

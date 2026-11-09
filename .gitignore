@@ -26,9 +26,11 @@ data/*.db
 *.db-journal
 *.log
 
-# --- Large model files (GitHub warns at 50 MB; say in models/README.md how to rebuild) ---
+# --- Large model files (GitHub refuses files over 100 MB; rebuild steps in models/README.md) ---
 models/*.pkl
 models/large/
+# notebook 01 on simulator data saves a 260 MB forest; notebook 02 will save a small, compressed model
+models/first_model.joblib
 
 # --- JavaScript dashboard ---
 node_modules/
@@ -41,3 +43,7 @@ npm-debug.log*
 .vscode/
 .idea/
 *.swp
+
+# --- Simulator output (about 75 MB; rebuild with: python -m simulator.cli batch) ---
+data/sim_vitals.csv
+data/sim_ground_truth.csv
