@@ -1,0 +1,29 @@
+# Tool configuration only. This project is not a pip-installable package.
+
+[tool.ruff]
+target-version = "py313"
+line-length = 120          # matches the starter notebook's style
+extend-exclude = ["dashboard/node_modules", "models"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes: unused imports, undefined names
+    "I",        # import sorting
+    "B",        # bugbear: likely bugs
+    "UP",       # newer Python syntax
+    "S",        # bandit: security checks (hard-coded secrets, unsafe calls)
+    "SIM",      # simplifications
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]                       # assert is how pytest works
+# The starter notebook has deliberate ___ blanks and a long setup cell
+"notebooks/**" = ["F821", "F841", "E501", "E702", "S101", "B023", "I001", "SIM102"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

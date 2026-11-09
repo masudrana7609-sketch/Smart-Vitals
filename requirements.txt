@@ -1,0 +1,36 @@
+# Smart Vitals: Python dependencies
+# Install inside a virtual environment: see docs/dev-setup.md
+#   python -m pip install -r requirements.txt
+# "~=X.Y" means any X.Y.* bug-fix release, and nothing newer (reproducible but still patched).
+
+# --- Starter packages (notebook 01 and tests/test_model.py) ---
+numpy~=2.5
+pandas~=3.1
+scikit-learn~=1.9
+matplotlib~=3.11
+joblib~=1.6
+jupyter~=1.1
+pytest~=9.2
+
+# --- API and storage (app/: R4, R5, R6, R11) ---
+fastapi~=0.162
+uvicorn[standard]~=0.54
+pydantic~=2.14
+pydantic-settings~=2.16
+sqlalchemy~=2.1
+python-dotenv~=1.2
+
+# --- Security (R5): password hashing and login tokens ---
+pwdlib[argon2]~=0.3
+pyjwt~=2.15
+
+# --- Simulator feed (simulator/: R2, R9) ---
+paho-mqtt~=2.2
+httpx~=0.28
+
+# --- Development tools ---
+ruff~=0.17
+pytest-cov~=7.1
+
+# --- Postgres driver (Docker database; SQLite needs no extra package) ---
+psycopg[binary]~=3.3

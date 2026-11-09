@@ -1,0 +1,43 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+.venv/
+venv/
+
+# --- Secrets (START_HERE rule 2) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Local data and databases (never real patient data, but keep local runs out) ---
+data/private/
+data/*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.log
+
+# --- Large model files (GitHub warns at 50 MB; say in models/README.md how to rebuild) ---
+models/*.pkl
+models/large/
+
+# --- JavaScript dashboard ---
+node_modules/
+dashboard/dist/
+dashboard/.vite/
+npm-debug.log*
+
+# --- Editors and OS ---
+.DS_Store
+.vscode/
+.idea/
+*.swp

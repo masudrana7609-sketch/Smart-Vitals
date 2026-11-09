@@ -1,0 +1,14 @@
+# Assumptions log
+
+The brief: *"You are free to make reasonable assumptions ... All assumptions must be clearly stated in your report."* Add each one as you make it.
+
+| ID | Assumption | Why it is reasonable | What changes if it is wrong |
+|---|---|---|---|
+| A1 | *(example)* Each wearable sends one reading a minute | Typical of consumer wearables in our Week 6 simulation | Faster readings mean more messages: check the API can keep up (Week 7) |
+| A2 | *(example)* The Normal / Warning / Critical labels come from a points rule I designed | No real patient data is allowed, so labels must be simulated | The model may only re-learn my rule: discussed as a limitation |
+| A3 | The live demo has 30 simulated patients and 3 clinicians (10 patients each); the model is trained on a separate set of about 200 simulated patients | Enough to show access control and all three risk groups while keeping the demo readable; more patients give the model more varied examples | A real ward or community caseload is larger: check the API and database keep up (load test in S4) |
+| A4 | The simulator runs 60× faster than real time by default (one simulated minute per real second); it can be set back to real time | A wearable sends about one reading a minute (A1); 60× lets a 10-minute test (T1) and the live demo run in seconds | Timing-based behaviour (late readings, alert reminders) is measured in simulated time, not wall-clock time |
+| A5 | The model is good enough if recall for Critical is at least 0.90 on unseen patients, with no more than 5 false alarms per 100 Normal readings | A missed Critical means no alert (R4), so recall comes first; the cap keeps alarm fatigue in check. The starter forest reached 0.81, and 2% of labels are deliberately noisy | If the target is not met, a rule-based safety net (hard limits) still raises alerts; reported as a limitation |
+| A6 | A patient has at most one open alert. It stays open until a clinician acknowledges it, sends a reminder after 15 minutes, and a new alert is raised at once if the reading gets worse | Reduces alarm fatigue without hiding a deterioration | Clinicians who never acknowledge would get repeated reminders; a real system would escalate to another clinician |
+| A7 | Readings are kept for 30 days; alerts and the audit log for 365 days, then purged automatically | UK GDPR storage limitation and data minimisation: trends need weeks, not years, of raw readings | A real NHS deployment would follow the NHS Records Management Code of Practice, which may require longer retention |
+| A8 | Clinicians are assigned their patients in advance, and every patient has exactly one assigned clinician | Keeps access control (R5) and alert routing (R4) simple and testable | Shared care or shift handover would need team-based access rules |
