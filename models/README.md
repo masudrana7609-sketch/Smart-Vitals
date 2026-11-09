@@ -12,3 +12,15 @@ jupyter nbconvert --execute --to notebook --inplace notebooks/01_first_model.ipy
 ```
 
 `first_model.json` (column names, labels, an example reading) is small and stays in the repository. Until the model is rebuilt, `tests/test_model.py` skips its two tests.
+
+## model_v2 (the model the API uses)
+
+`model_v2.joblib` (0.4 MB, in the repository) is the gradient boosting model chosen in `notebooks/02_compare_models.ipynb`. `model_v2.json` lists its inputs in order, its labels, its Critical threshold (0.153), the window size, and its test results. Prepare readings with `src/features.py` and load and use it with `src/model.py`:
+
+```python
+from src.model import load, predict_with_threshold
+model, info = load("models/model_v2.joblib")
+labels = predict_with_threshold(model, X[info["features"]], info["critical_threshold"])
+```
+
+Rebuild it by running notebook 02 (about 90 seconds) after the simulator batch.

@@ -1,0 +1,59 @@
+{
+  "name": "model_v2",
+  "approach": "Gradient boosting (+ last-5 median)",
+  "created": "2026-11-09",
+  "features": [
+    "risk_level",
+    "diabetic",
+    "spo2_scale",
+    "heart_rate",
+    "spo2",
+    "systolic_bp",
+    "diastolic_bp",
+    "temperature",
+    "glucose",
+    "heart_rate_med5",
+    "spo2_med5",
+    "systolic_bp_med5",
+    "diastolic_bp_med5",
+    "temperature_med5",
+    "glucose_med5"
+  ],
+  "labels": [
+    "Normal",
+    "Warning",
+    "Critical"
+  ],
+  "critical_threshold": 0.15267501900434824,
+  "window": 5,
+  "needs": "clean_readings -> add_patient_settings -> add_window_features (src/features.py)",
+  "trained_on": {
+    "data": "data/sim_vitals.csv (simulator seed 42)",
+    "patients": 64,
+    "readings": 274416
+  },
+  "test": {
+    "patients": 16,
+    "recall Critical": 0.979,
+    "false alarms /100 Normal": 0.659,
+    "precision Critical": 0.84,
+    "F1 (macro)": 0.783
+  },
+  "example_row": {
+    "risk_level": 3.0,
+    "diabetic": 0.0,
+    "spo2_scale": 2.0,
+    "heart_rate": 70.0,
+    "spo2": 89.0,
+    "systolic_bp": 137.0,
+    "diastolic_bp": 80.0,
+    "temperature": 36.4,
+    "glucose": null,
+    "heart_rate_med5": 70.0,
+    "spo2_med5": 89.0,
+    "systolic_bp_med5": 137.0,
+    "diastolic_bp_med5": 80.0,
+    "temperature_med5": 36.4,
+    "glucose_med5": null
+  }
+}
