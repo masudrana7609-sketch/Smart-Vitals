@@ -5,7 +5,7 @@ Write the tests **before** you build each part, then fill in the results with sc
 | ID | Requirement | What I do | Expected | Result and evidence | Pass? |
 |---|---|---|---|---|---|
 | T1 | R2 | Run the simulator for 10 patients for 10 minutes | 100 readings stored | | |
-| T2 | R3 | Notebook 01 Step 7 on unseen patients | Recall for Critical at least my target | Simulator data, 16 unseen patients: recall 0.621, 2.1 false alarms per 100 Normal (`docs/results/first_model.md`, `first_model_confusion_sim.png`) | No (target 0.90) |
+| T2 | R3 | Notebook 01 Step 7 on unseen patients | Recall for Critical at least my target | Notebook 01: recall 0.621 (No). **Notebook 02, model v2** (gradient boosting + last-5 median + SpO₂ scale), same 16 unseen patients: recall 0.979, 0.66 false alarms per 100 Normal (`docs/results/model_comparison.md`, `model_v2_confusion.png`); checked by `tests/test_model_v2.py` | Yes |
 | T3 | R4 | Send one Critical reading for patient P001 | One alert to P001's clinician, with patient ID, vitals and timestamp | | |
 | T4 | R5 | Clinician A asks for a patient of clinician B | Refused (e.g. HTTP 403) | | |
 | T5 | R6 | Ask for P001's history | All readings and alerts, in time order | | |

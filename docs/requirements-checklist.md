@@ -8,7 +8,7 @@ Every requirement and required output from the assessment brief, in the brief's 
 |---|---|---|---|---|
 | R1 | Patients grouped into Low, Medium and High risk, from their condition(s) and history | `src/risk.py` (documented points rule), used by `simulator/patients.py`; A9 | T13 (`tests/test_simulator.py`) | [x] |
 | R2 | Sensor readings ingested continuously for each patient through an IoT-style feed (simulation is allowed) | `simulator/` batch mode done (S1); live MQTT feed and ingest in S2 | T1, T14 | [ ] |
-| R3 | A machine learning model classifies each reading (or sequence of readings) as Normal, Warning or Critical | Notebook 01 random forest on simulator data, saved to `models/`; recall for Critical 0.621 (target 0.90 not met yet: the model needs `spo2_scale`, notebook 02) | T2, `tests/test_model.py` | [ ] |
+| R3 | A machine learning model classifies each reading (or sequence of readings) as Normal, Warning or Critical | `models/model_v2` from notebook 02 (gradient boosting + last-5 median + SpO₂ scale); recall for Critical 0.979 on unseen patients; inputs prepared by `src/features.py`, thresholds by `src/model.py`. Used by the API from S2 | T2, `tests/test_model_v2.py`, `tests/test_features.py` | [x] |
 | R4 | A Critical reading triggers an automated alert to the assigned clinician, with patient ID, the vitals and a timestamp | | | [ ] |
 | R5 | Data stored securely and access-controlled: clinicians see only their own patients; a patient view (if built) shows only that patient | | | [ ] |
 | R6 | A history of readings and alerts is kept for each patient, for trends over time | | | [ ] |
@@ -22,7 +22,7 @@ Every requirement and required output from the assessment brief, in the brief's 
 
 | ID | The brief requires | Outcome | Where | Done |
 |---|---|---|---|---|
-| Output 1 | A critical evaluation of at least two approaches (e.g. model types, or edge versus cloud), justifying your choice | LO1 | `docs/approaches.md`, report | [ ] |
+| Output 1 | A critical evaluation of at least two approaches (e.g. model types, or edge versus cloud), justifying your choice | LO1 | `docs/approaches.md` (Comparison 1 done; Comparison 2, edge versus cloud, in S4), notebook 02, report | [ ] |
 | Output 2 | A working IPMS: IoT-style ingestion, a trained and evaluated model, a clinician dashboard, in an appropriate architecture | LO2 | repository, demo | [ ] |
 | Output 3 | The ethical, security, privacy, sustainability and societal implications, and how your design addresses them | LO3 | `docs/ethics-security-checklist.md`, report | [ ] |
 | Output 4 | Thorough testing, including model metrics (accuracy, precision, recall, F1, confusion matrix), with screenshots and test cases | | `docs/test-plan.md`, `docs/results/` | [ ] |
