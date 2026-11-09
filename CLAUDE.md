@@ -7,13 +7,13 @@ Context for AI assistants (and humans) working in this repo. Assessment: CMS2230
 2. **No secrets in the repo.** Use `.env` (ignored); `.env.example` holds placeholders only.
 3. **Log every AI-assisted task** as a new row in `docs/ai-use-log.md` (Date | Task | What Claude did | What I decided/changed). Leave the last column for the student.
 4. **Every requirement R1–R11 gets a test** from `docs/test-plan.md`; write the test with (or before) the feature.
-5. Keep all starter files. The notebook `___` blanks in `notebooks/01_first_model.ipynb` are the student's to fill in.
+5. Keep all starter files. The `___` blanks in notebook 01 were filled by Claude at the student's request (logged); the written "Your answer" cells stay the student's.
 6. Small commits with clear messages ("Add Critical alert to API", not "update").
 
 ## Agreed decisions (9 Nov 2026)
 | Topic | Decision | Recorded in |
 |---|---|---|
-| Patients / clinicians | 30 live demo patients, 3 clinicians (10 each); ~200 simulated patients for the training set | A3 |
+| Patients / clinicians | 30 live demo patients, 3 clinicians (10 each); 80 simulated patients × 3 days for the training set | A3 |
 | Simulation speed | Configurable `SIM_SPEEDUP`, default 60× (1 simulated minute per real second); timestamps are simulated time | A4 |
 | Model target | Recall for Critical ≥ 0.90 on unseen patients, with ≤ 5 false alarms per 100 Normal readings | A5, ADR 1 |
 | Alert rule | One open alert per patient until acknowledged; reminder after 15 min; new alert at once if worse. Duplicate messages removed by `message_id` | A6, ADR 5 |
