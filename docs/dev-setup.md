@@ -47,5 +47,16 @@ jupyter notebook notebooks/    # open the notebooks with the .venv kernel
 - A package will not install: check `python --version` inside `.venv`, then delete `.venv` and repeat step 2.
 - Jupyter uses the wrong Python: run `python -m ipykernel install --user --name smart-vitals`, then pick the **smart-vitals** kernel.
 
+## The dashboard (Node.js)
+
+Use Node 22 or 24 (LTS); Node 25 works but some test tools warn about it.
+
+```bash
+cd dashboard
+npm install
+npm run dev     # http://localhost:5173 (the API must be running on port 8000)
+npm test
+```
+
 ## Later
-The Node.js dashboard and Docker setup will be added here once they are built.
+Docker setup will be added here in Sprint 4.

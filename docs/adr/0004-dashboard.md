@@ -14,7 +14,10 @@ R8 needs vital-sign trend charts; R5 needs clinicians to see only their own pati
 React. The dashboard holds no data of its own: every request goes to the API with the clinician's token, and **the API enforces access control**, so a mistake in the front end cannot leak another clinician's patients (T4).
 
 ## Evidence
-To add in S3: T4, T6 and T11 results and screenshots.
+- T6: `docs/results/screenshots/patient_P001_light.png` (24 h), `patient_P001_1h.png`, `patient_P001_dark.png`, `mobile_P001.png`: one chart per vital, default band, personal limit, alert line, Critical points.
+- T4: `denied_P002.png` (the API's 403 shown as "Not your patient"); T11: the limits panel on the patient page.
+- 7 dashboard tests (`npm test`); type-check and production build pass. Checked in Chrome at desktop and phone width (no horizontal scrolling), light and dark.
+- Built with React 19.3, Vite 8.3, TypeScript 5.9 (not 7.0, too new for the tooling), Recharts 3.10, TanStack Query 5.
 
 ## Consequences
 - **Better:** a clear front end / back end split (R11); the security boundary is in one place.

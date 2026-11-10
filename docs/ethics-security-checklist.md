@@ -9,10 +9,10 @@ Go through this now, and again before you hand in. Each item needs a sentence in
 - [ ] How long are readings and alerts kept, and who can delete them?
 
 ## Security (R5)
-- [ ] Clinicians log in, and can see only their own patients. A patient view shows only that patient. Tested?
-- [ ] Passwords are stored hashed, never in plain text; keys live in `.env`, not in the repository.
+- [x] Clinicians log in, and can see only their own patients. A patient view shows only that patient. Tested? *(T4, T18; no patient view built)*
+- [x] Passwords are stored hashed, never in plain text; keys live in `.env`, not in the repository. *(argon2; the API refuses a placeholder SECRET_KEY)*
 - [ ] Traffic between parts is encrypted (HTTPS, MQTT over TLS), or I explain why not in a prototype.
-- [ ] Is there a log of who viewed or changed what?
+- [x] Is there a log of who viewed or changed what? *(audit log, ADR 6)*
 - [ ] Where could someone attack the system: the feed, the API, the model, the dashboard? (Week 10)
 
 ## Safety and fairness

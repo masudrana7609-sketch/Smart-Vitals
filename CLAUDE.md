@@ -47,4 +47,5 @@ python -m simulator.cli batch                                   # training data 
 python -m simulator.cli patients && python -m app.seed data/demo/sim_patients.csv
 uvicorn app.main:create_app --factory --reload                  # API
 python -m simulator.cli live --transport http                   # or: scenario; or --transport mqtt + app.mqtt_ingest
+cd dashboard && npm install && npm run dev && npm test          # dashboard on :5173
 ```
