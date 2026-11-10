@@ -45,6 +45,11 @@ from src.vitals import PLAUSIBLE_RANGE, VITALS
 bearer = HTTPBearer(auto_error=False)
 
 
+def _limits_text(low: float | None, high: float | None) -> str:
+    """Readable limits for the audit log, e.g. "low none, high 110"."""
+    return f"low {'none' if low is None else f'{low:g}'}, high {'none' if high is None else f'{high:g}'}"
+
+
 def create_app(settings: Settings | None = None, classifier=None, notifier=None) -> FastAPI:
     settings = settings or get_settings()
     auth.check_secret(settings.secret_key)
@@ -302,7 +307,7 @@ def create_app(settings: Settings | None = None, classifier=None, notifier=None)
         existing = session.scalar(
             select(PatientThreshold).where(PatientThreshold.patient_id == patient_id, PatientThreshold.vital == vital)
         )
-        before = f"{existing.low}-{existing.high}" if existing else "default"
+        before = _limits_text(existing.low, existing.high) if existing else "default"
         threshold = existing or PatientThreshold(patient_id=patient_id, vital=vital)
         threshold.low, threshold.high, threshold.reason = body.low, body.high, body.reason
         threshold.set_by, threshold.set_at = user.id, datetime.now(UTC).replace(tzinfo=None)
@@ -312,7 +317,7 @@ def create_app(settings: Settings | None = None, classifier=None, notifier=None)
             user.id,
             "threshold.set",
             patient_id,
-            detail=f"{vital}: {before} -> {body.low}-{body.high}; {body.reason}",
+            detail=f"{vital}: {before} -> {_limits_text(body.low, body.high)}; {body.reason}",
         )
         session.commit()
         return thresholds_out(session, patient)

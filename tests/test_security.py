@@ -244,3 +244,15 @@ def test_repeated_views_are_logged_once_but_refusals_every_time(api):
     views = [r for r in rows if r["action"] == "history.view" and r["patient_id"] == P001["patient_id"]]
     denied = [r for r in rows if r["action"] == "history.view" and r["outcome"] == "denied"]
     assert len(views) == 1 and len(denied) == 5
+
+
+def test_threshold_changes_are_readable_in_the_audit_log(api):
+    client, _ = api
+    headers = login(client, P001["clinician_id"])
+    client.put(
+        f"/patients/{P001['patient_id']}/thresholds/heart_rate",
+        headers=headers,
+        json={"high": 110, "reason": "post-op tachycardia watch"},
+    )
+    detail = next(r["detail"] for r in audit_rows(client) if r["action"] == "threshold.set")
+    assert detail == "heart_rate: default -> low none, high 110; post-op tachycardia watch"
