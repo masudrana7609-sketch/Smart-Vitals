@@ -14,10 +14,10 @@ Wearables send each MedLink patient's vital signs once a minute. Every reading i
 
 ```mermaid
 flowchart LR
-  subgraph Edge["Edge: wearable and gateway"]
+  subgraph Edge["Edge (wearable, gateway)"]
     S["simulator<br/>checks, msg_id,<br/>store-and-forward"]
   end
-  subgraph Cloud["Cloud: Docker Compose (internal network)"]
+  subgraph Cloud["Cloud (Docker Compose)"]
     M["Mosquitto<br/>MQTT, QoS 1,<br/>logins and ACL"]
     I["ingest service<br/>quality checks, model v2,<br/>alert rule"]
     DB[("Postgres<br/>readings, alerts,<br/>audit log")]
@@ -33,7 +33,7 @@ flowchart LR
   C --> D
 ```
 
-The edge checks readings and keeps them while offline; the cloud runs the model, stores the history and raises alerts (ADR 3). Each part is its own container (ADR 8). Key decisions: [`docs/adr/`](docs/adr/). Edge versus cloud, measured: [`docs/approaches.md`](docs/approaches.md).
+As an image: [`docs/architecture.png`](docs/architecture.png) ([SVG](docs/architecture.svg)). The edge checks readings and keeps them while offline; the cloud runs the model, stores the history and raises alerts (ADR 3). Each part is its own container (ADR 8). Key decisions: [`docs/adr/`](docs/adr/). Edge versus cloud, measured: [`docs/approaches.md`](docs/approaches.md).
 
 ## How the requirements are met
 
@@ -66,11 +66,11 @@ docker compose --profile demo up --build   # dashboard http://localhost:8080 · 
 
 Log in as `C01`, `C02` or `C03` (clinicians) or `admin`, with the demo passwords from your `.env`.
 
-For development, tests and notebooks: [`docs/dev-setup.md`](docs/dev-setup.md).
+For development, tests and notebooks: [`docs/dev-setup.md`](docs/dev-setup.md). A recorded demo (93 s, with captions): [`docs/report/demo/smart-vitals-demo.webm`](docs/report/demo/smart-vitals-demo.webm); to prepare the live demo, `sh tools/prepare_demo.sh`.
 
 ```bash
 pip install -r requirements.txt
-pytest                                     # 112 tests
+pytest                                     # 113 tests
 cd dashboard && npm install && npm test    # 7 tests
 ```
 
