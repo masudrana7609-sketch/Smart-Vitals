@@ -31,6 +31,7 @@ httpx~=0.28
 # --- Development tools ---
 ruff~=0.17
 pytest-cov~=7.1
+amqtt~=0.12              # a small MQTT broker in Python, for the MQTT tests (Mosquitto runs in Docker)
 
 # --- Postgres driver (Docker database; SQLite needs no extra package) ---
 psycopg[binary]~=3.3

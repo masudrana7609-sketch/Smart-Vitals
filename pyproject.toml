@@ -16,6 +16,9 @@ select = [
     "SIM",      # simplifications
 ]
 
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query"]  # the normal FastAPI pattern
+
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101"]                       # assert is how pytest works
 # The starter notebook has deliberate ___ blanks and a long setup cell; notebooks import src/ after setting the path
@@ -28,3 +31,8 @@ quote-style = "double"
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-ra"
+filterwarnings = [
+    # Starlette asks for httpx2 in future; httpx still works for the TestClient
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+    "ignore:`BrokerSysPlugin`:DeprecationWarning",  # amqtt, the test-only broker
+]
