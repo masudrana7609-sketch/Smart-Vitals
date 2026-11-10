@@ -53,15 +53,17 @@ def stream(
 
 
 class HttpSender:
-    """POST each message to the API's /readings endpoint. client can be an httpx.Client or FastAPI TestClient."""
+    """POST each message to the API's /readings endpoint with the device ingest key (X-Ingest-Key).
+    client can be an httpx.Client or a FastAPI TestClient."""
 
-    def __init__(self, api_url: str = "http://localhost:8000", client=None, timeout: float = 10):
+    def __init__(self, api_url: str = "http://localhost:8000", client=None, timeout: float = 10, ingest_key: str = ""):
         import httpx
 
         self.client = client or httpx.Client(base_url=api_url, timeout=timeout)
+        self.headers = {"X-Ingest-Key": ingest_key} if ingest_key else {}
 
     def __call__(self, message: dict) -> str:
-        response = self.client.post("/readings", json=message)
+        response = self.client.post("/readings", json=message, headers=self.headers)
         if response.status_code == 200:
             return response.json()["result"]
         log.warning("%s: HTTP %s %s", message["msg_id"], response.status_code, response.text[:200])

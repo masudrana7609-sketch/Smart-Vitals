@@ -13,6 +13,7 @@ batch writes three files:
 """
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -155,8 +156,14 @@ def _sender(args):
     from simulator.live import HttpSender, MqttSender
 
     if args.transport == "mqtt":
-        return MqttSender(args.mqtt_host, args.mqtt_port, args.topic)
-    return HttpSender(args.api_url)
+        return MqttSender(
+            args.mqtt_host,
+            args.mqtt_port,
+            args.topic,
+            os.environ.get("MQTT_USERNAME", ""),
+            os.environ.get("MQTT_PASSWORD", ""),
+        )
+    return HttpSender(args.api_url, ingest_key=os.environ.get("INGEST_KEY", ""))
 
 
 def cmd_live(args) -> int:
@@ -237,6 +244,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv=None) -> int:
+    from dotenv import load_dotenv
+
+    load_dotenv()  # INGEST_KEY and MQTT credentials from .env, never from the command line
     args = build_parser().parse_args(argv)
     return args.func(args)
 

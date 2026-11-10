@@ -1,31 +1,15 @@
 """API and pipeline tests: T1, T3, T5, T7-T10 from docs/test-plan.md, plus the alert rule (ADR 5)."""
 
-import numpy as np
-import pytest
-from fastapi.testclient import TestClient
+from conftest import PATIENTS, TEST_INGEST_KEY, login, make_api
 
-from app.config import Settings
-from app.main import create_app
-from app.notify import ListNotifier
-from app.seed import seed
 from simulator import scenario
 from simulator.cli import run_batch
 from simulator.config import FaultRates, SimConfig
 from simulator.live import HttpSender, payloads, stream
-from simulator.patients import generate_patients
 
-PATIENTS = generate_patients(SimConfig(n_patients=6, seed=3), np.random.default_rng(3))
 P001 = PATIENTS.iloc[0].to_dict()
+C01 = P001["clinician_id"]
 T0 = "2026-01-06T00:"
-
-
-@pytest.fixture
-def api():
-    notifier = ListNotifier()
-    app = create_app(Settings(database_url="sqlite://", _env_file=None), notifier=notifier)
-    with app.state.sessions() as session:
-        seed(session, PATIENTS)
-    return TestClient(app), notifier
 
 
 def reading(minute, patient=P001, sent_minute=None, msg=None, **vitals):
@@ -68,7 +52,7 @@ def test_T3_one_alert_with_patient_id_vitals_and_time(api):
     note = new[0]
     assert note.clinician_id == P001["clinician_id"]
     assert P001["patient_id"] in note.message and "SpO2" in note.message and "2026-01-06" in note.message
-    alert = client.get("/alerts", params={"state": "open"}).json()[0]
+    alert = client.get("/alerts", params={"state": "open"}, headers=login(client, C01)).json()[0]
     assert alert["patient_id"] == P001["patient_id"] and alert["clinician_id"] == P001["clinician_id"]
     assert alert["vitals"]["spo2"] <= 91 and alert["raised_at"].startswith("2026-01-06T00:1")
     assert "spo2" in alert["red_vitals"] or alert["decided_by"] == "model"
@@ -81,12 +65,13 @@ def test_T5_history_has_all_readings_and_alerts_in_time_order(api):
     client, _ = api
     messages = scenario.build(P001)
     send_all(client, messages)
-    history = client.get(f"/patients/{P001['patient_id']}/history").json()
+    headers = login(client, C01)
+    history = client.get(f"/patients/{P001['patient_id']}/history", headers=headers).json()
     times = [r["measured_at"] for r in history["readings"]]
     assert len(times) == len({m["msg_id"] for m in messages}) == 26
     assert times == sorted(times)
     assert len(history["alerts"]) == 1
-    assert client.get("/patients/P999/history").status_code == 404
+    assert client.get("/patients/P999/history", headers=headers).status_code == 404
 
 
 # --- T7 (R9): a missing vital ------------------------------------------------------------------
@@ -109,7 +94,8 @@ def test_T8_late_reading_is_stored_in_order_and_flagged(api):
     send_all(client, [reading(m) for m in range(10) if m != 4])
     result = client.post("/readings", json=reading(4, sent_minute=9)).json()
     assert "late" in result["flags"]
-    times = [r["measured_at"] for r in client.get(f"/patients/{P001['patient_id']}/history").json()["readings"]]
+    history = client.get(f"/patients/{P001['patient_id']}/history", headers=login(client, C01)).json()
+    times = [r["measured_at"] for r in history["readings"]]
     assert times == sorted(times) and len(times) == 10
 
 
@@ -139,7 +125,7 @@ def test_T9_impossible_value_is_a_sensor_error_not_an_alert(api):
     result = client.post("/readings", json=reading(8, heart_rate=250.0, spo2=0.0)).json()
     assert {"sensor_error:heart_rate", "sensor_error:spo2"} <= set(result["flags"])
     assert result["status"] != "Critical" and notifier.sent == []
-    stored = client.get(f"/patients/{P001['patient_id']}/history").json()["readings"][-1]
+    stored = client.get(f"/patients/{P001['patient_id']}/history", headers=login(client, C01)).json()["readings"][-1]
     assert stored["heart_rate"] is None and stored["spo2"] is None
 
 
@@ -151,7 +137,8 @@ def test_T10_duplicate_message_is_stored_once(api):
     send_all(client, [reading(m) for m in range(10)] + [reading(m, **CRITICAL) for m in range(10, 14)])
     again = client.post("/readings", json=reading(13, **CRITICAL)).json()
     assert again["result"] == "duplicate"
-    assert len(client.get(f"/patients/{P001['patient_id']}/history").json()["readings"]) == 14
+    history = client.get(f"/patients/{P001['patient_id']}/history", headers=login(client, C01)).json()
+    assert len(history["readings"]) == 14
     assert len(alerts_sent(notifier, "new")) == 1
 
 
@@ -180,7 +167,8 @@ def test_glucose_from_a_patient_without_diabetes_is_not_stored(api):
     patient = PATIENTS[PATIENTS["diabetes"] == 0].iloc[0].to_dict()
     result = client.post("/readings", json=reading(0, patient=patient, glucose=6.0)).json()
     assert "ignored:glucose" in result["flags"]
-    assert client.get(f"/patients/{patient['patient_id']}/history").json()["readings"][0]["glucose"] is None
+    history = client.get(f"/patients/{patient['patient_id']}/history", headers=login(client, patient["clinician_id"]))
+    assert history.json()["readings"][0]["glucose"] is None
 
 
 # --- Alert rule (ADR 5) -------------------------------------------------------------------------
@@ -191,7 +179,7 @@ def test_open_alert_is_reminded_after_15_minutes(api):
     send_all(client, [reading(m) for m in range(10)] + [reading(m, **CRITICAL) for m in range(10, 30)])
     assert len(alerts_sent(notifier, "new")) == 1
     assert len(alerts_sent(notifier, "reminder")) == 1
-    assert client.get("/alerts", params={"state": "open"}).json()[0]["reminders"] == 1
+    assert client.get("/alerts", params={"state": "open"}, headers=login(client, C01)).json()[0]["reminders"] == 1
 
 
 def test_much_worse_reading_escalates_after_the_settling_period(api):
@@ -204,19 +192,20 @@ def test_much_worse_reading_escalates_after_the_settling_period(api):
         + [reading(m, **worse) for m in range(18, 24)],
     )
     assert [n.kind for n in notifier.sent] == ["new", "escalation"]
-    states = sorted(a["state"] for a in client.get("/alerts").json())
+    states = sorted(a["state"] for a in client.get("/alerts", headers=login(client, C01)).json())
     assert states == ["open", "superseded"]
 
 
 def test_only_the_assigned_clinician_can_acknowledge(api):
     client, notifier = api
     send_all(client, [reading(m) for m in range(10)] + [reading(m, **CRITICAL) for m in range(10, 15)])
-    alert = client.get("/alerts", params={"state": "open"}).json()[0]
+    mine = login(client, C01)
+    alert = client.get("/alerts", params={"state": "open"}, headers=mine).json()[0]
     other = next(c for c in PATIENTS["clinician_id"].unique() if c != alert["clinician_id"])
     url = f"/alerts/{alert['id']}/acknowledge"
-    assert client.post(url, json={"clinician_id": other}).status_code == 403
-    assert client.post(url, json={"clinician_id": alert["clinician_id"]}).json()["state"] == "acknowledged"
-    assert client.post(url, json={"clinician_id": alert["clinician_id"]}).status_code == 409
+    assert client.post(url, headers=login(client, other)).status_code == 403
+    assert client.post(url, headers=mine).json()["state"] == "acknowledged"
+    assert client.post(url, headers=mine).status_code == 409
 
     send_all(client, [reading(m, **CRITICAL) for m in range(15, 25)])  # still Critical, no worse: quiet period
     assert len(alerts_sent(notifier, "new")) == 1
@@ -232,13 +221,17 @@ def test_T1_ten_patients_for_ten_minutes_gives_100_readings():
         n_patients=10, days=10 / (24 * 60), seed=3, start="2026-01-05T00:00:00Z", faults=FaultRates(0, 0, 0, 0, 0, 0)
     )
     patients, delivered, _ = run_batch(cfg)
-    app = create_app(Settings(database_url="sqlite://", _env_file=None), notifier=ListNotifier())
-    with app.state.sessions() as session:
-        seed(session, patients)
-    client = TestClient(app)
-    results = stream(payloads(delivered), HttpSender(client=client), speedup=0)
+    client, _ = make_api(patients)
+    results = stream(payloads(delivered), HttpSender(client=client, ingest_key=TEST_INGEST_KEY), speedup=0)
     assert results == {"stored": 100}
-    assert client.get("/health").json()["readings"] == 100
+    headers = login(client, "admin")
+    assert (
+        sum(
+            len(client.get(f"/patients/{p}/history", headers=headers).json()["readings"])
+            for p in patients["patient_id"]
+        )
+        == 100
+    )
 
 
 def test_payloads_carry_no_label_or_risk_group():
@@ -250,7 +243,12 @@ def test_payloads_carry_no_label_or_risk_group():
 
 def test_no_reminders_once_the_patient_is_normal_again(api):
     client, notifier = api
-    send_all(client, [reading(m) for m in range(10)] + [reading(m, **CRITICAL) for m in range(10, 16)]
-             + [reading(m) for m in range(16, 45)])
+    send_all(
+        client,
+        [reading(m) for m in range(10)]
+        + [reading(m, **CRITICAL) for m in range(10, 16)]
+        + [reading(m) for m in range(16, 45)],
+    )
     assert [n.kind for n in notifier.sent] == ["new"]
-    assert client.get("/alerts", params={"state": "open"}).json()[0]["reminders"] == 0  # still open for review
+    open_alerts = client.get("/alerts", params={"state": "open"}, headers=login(client, C01)).json()
+    assert open_alerts[0]["reminders"] == 0  # still open for review

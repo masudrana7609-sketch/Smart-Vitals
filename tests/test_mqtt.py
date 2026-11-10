@@ -11,10 +11,10 @@ import time
 
 import numpy as np
 import pytest
+from conftest import settings_for_tests
 from sqlalchemy import func, select
 
 from app.classifier import Classifier
-from app.config import Settings
 from app.db import init_db, make_engine, make_session_factory
 from app.mqtt_ingest import handle_payload, make_client
 from app.notify import ListNotifier
@@ -58,7 +58,7 @@ def broker_port():
 
 @pytest.fixture
 def system(tmp_path):
-    settings = Settings(database_url=f"sqlite:///{tmp_path / 'test.db'}", _env_file=None)
+    settings = settings_for_tests(database_url=f"sqlite:///{tmp_path / 'test.db'}")
     engine = make_engine(settings.database_url)
     init_db(engine)
     sessions = make_session_factory(engine)
