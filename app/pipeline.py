@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app import alerts, quality
 from app.schemas import IngestResult, ReadingIn, to_utc_naive
-from app.tables import Patient, Reading
+from app.tables import Patient, PatientThreshold, Reading
 from src.vitals import VITALS
 
 log = logging.getLogger("smartvitals.pipeline")
@@ -63,7 +63,11 @@ def process(session: Session, msg: ReadingIn, classifier, settings, notifier) ->
     for vital in quality.stuck_vitals(checked.values, previous_raw, settings.stuck_readings):
         checked.values[vital] = None
         checked.flags.append(f"stuck:{vital}")
-    result = classifier.classify(patient, checked.values, previous)
+    limits = {
+        t.vital: (t.low, t.high)
+        for t in session.scalars(select(PatientThreshold).where(PatientThreshold.patient_id == patient.id))
+    }
+    result = classifier.classify(patient, checked.values, previous, limits)
 
     reading = Reading(
         msg_id=msg.msg_id,

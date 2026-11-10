@@ -1,7 +1,11 @@
-"""Load simulated patients and their clinicians into the database.
+"""Load simulated patients, their clinicians and an admin into the database.
 
-python -m simulator.cli patients --patients 30 --seed 7 --out data/demo
-python -m app.seed data/demo/sim_patients.csv
+    python -m simulator.cli patients --out data/demo
+    python -m app.seed data/demo/sim_patients.csv
+
+Clinician logins are their IDs (C01, C02, ...); the admin's is "admin". Passwords come from
+DEMO_CLINICIAN_PASSWORD and DEMO_ADMIN_PASSWORD in .env (at least 12 characters) and are stored only as
+argon2 hashes. Every person here is invented.
 """
 
 import argparse
@@ -9,14 +13,24 @@ import sys
 
 import pandas as pd
 
+from app.auth import hash_password
 from app.config import get_settings
 from app.db import init_db, make_engine, make_session_factory
 from app.tables import Clinician, Patient
 
 
-def seed(session, patients: pd.DataFrame) -> int:
+def seed(session, patients: pd.DataFrame, password: str | None = None, admin_password: str | None = None) -> int:
+    """Add or update the clinicians, the admin and the patients. Without passwords nobody can log in."""
     for clinician_id in sorted(patients["clinician_id"].unique()):
-        session.merge(Clinician(id=clinician_id, name=f"Clinician {clinician_id}"))
+        existing = session.get(Clinician, clinician_id)
+        clinician = existing or Clinician(id=clinician_id, name=f"Clinician {clinician_id}", role="clinician")
+        if password:
+            clinician.password_hash = hash_password(password)
+        session.add(clinician)
+    if admin_password:
+        admin = session.get(Clinician, "admin") or Clinician(id="admin", name="Administrator", role="admin")
+        admin.password_hash = hash_password(admin_password)
+        session.add(admin)
     for p in patients.to_dict("records"):
         session.merge(
             Patient(
@@ -40,14 +54,22 @@ def seed(session, patients: pd.DataFrame) -> int:
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(prog="python -m app.seed", description=__doc__)
+    parser = argparse.ArgumentParser(
+        prog="python -m app.seed", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("patients_csv")
     args = parser.parse_args(argv)
-    engine = make_engine(get_settings().database_url)
+    settings = get_settings()
+    if not settings.demo_clinician_password or not settings.demo_admin_password:
+        print("Set DEMO_CLINICIAN_PASSWORD and DEMO_ADMIN_PASSWORD in .env first (12+ characters).", file=sys.stderr)
+        return 2
+    engine = make_engine(settings.database_url)
     init_db(engine)
     with make_session_factory(engine)() as session:
-        count = seed(session, pd.read_csv(args.patients_csv))
-    print(f"seeded {count} patients")
+        count = seed(
+            session, pd.read_csv(args.patients_csv), settings.demo_clinician_password, settings.demo_admin_password
+        )
+    print(f"seeded {count} patients, their clinicians and the admin")
     return 0
 
 

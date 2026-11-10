@@ -24,13 +24,22 @@ Every reading, whether it arrives over MQTT or HTTP, goes through `pipeline.py`:
 | `pipeline.py`, `quality.py`, `classifier.py`, `alerts.py`, `notify.py` | The steps above |
 | `tables.py`, `db.py`, `schemas.py`, `config.py`, `seed.py` | Database tables, connection, message shapes, settings, loading patients |
 
-**Not yet (Sprint 3):** logins and access control (R5). Until then, run it only on your own machine with simulated data.
+## Security (Sprint 3, R5)
+
+- **Logins** (`auth.py`): passwords stored only as argon2 hashes; signed tokens (JWT, HS256) that expire after 30 minutes; 5 failed logins for a name lock it for 15 minutes. The API refuses to start without a real `SECRET_KEY`.
+- **Access control** (`main.py`): a clinician sees only their own patients, their history, thresholds and alerts (403 otherwise, T4) and acknowledges only their own alerts. An `admin` sees every patient, manages thresholds and reads the audit log.
+- **Devices** post readings with `X-Ingest-Key` (`INGEST_KEY`), never with a clinician login.
+- **Audit log** (`audit.py`, `GET /audit`, admin only): every login (and failed login), view, change and refused access. Repeated views are logged once per 5 minutes so the dashboard's refreshes do not bury the rest.
+- **Per-patient alert limits** (R10): `GET/PUT/DELETE /patients/{id}/thresholds/{vital}`, with a required reason; see ADR 7.
+
+Not in the prototype (see the report): HTTPS/TLS between services (Sprint 4 notes), multi-factor login, token revocation, encryption of the database at rest.
 
 ## Run it
 
 ```bash
+cp .env.example .env                                # then set SECRET_KEY, INGEST_KEY and the demo passwords
 python -m simulator.cli patients                    # 30 demo patients -> data/demo/sim_patients.csv
-python -m app.seed data/demo/sim_patients.csv       # load them into the database
+python -m app.seed data/demo/sim_patients.csv       # load them, with logins C01-C03 and admin
 uvicorn app.main:create_app --factory --reload      # the API on http://localhost:8000 (docs at /docs)
 
 # in a second terminal: stream readings

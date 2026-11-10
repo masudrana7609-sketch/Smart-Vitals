@@ -6,6 +6,7 @@ INSPIRED BY NEWS2 (Royal College of Physicians, 2017). THIS IS NOT A CLINICAL SC
 - NEWS2 also scores breathing rate, consciousness and supplemental oxygen. Smart Vitals does not measure
   them, so this is a partial score (a limitation: see docs/assumptions.md).
 - Glucose is not part of NEWS2. Its bands are this project's own invention (assumption A11).
+- Per-patient limits (R10, apply_personal_limits) replace the default bands for the vitals they cover.
 - Mapping to labels (agreed 9 Nov 2026, assumption A10): Critical if the total is 5 or more (the NEWS2
   "urgent response" threshold) or any single parameter scores 3 (a NEWS2 "red" score); Warning if the
   total is 3 or 4; otherwise Normal.
@@ -84,3 +85,26 @@ def status_from_parts(parts):
 def label(heart_rate, spo2, systolic_bp, temperature, glucose=np.nan, spo2_scale=1):
     """Convenience: (total score, label) for one reading or arrays of readings."""
     return status_from_parts(score_parts(heart_rate, spo2, systolic_bp, temperature, glucose, spo2_scale))
+
+
+def apply_personal_limits(parts: dict, values: dict, limits: dict) -> dict:
+    """Per-patient alert limits set by a clinician (R10) replace the default bands for those vitals:
+    a value inside [low, high] scores 0, a value outside scores 3 (a red score). A missing bound means no
+    limit on that side; a missing value scores 0. limits: {vital: (low, high)}."""
+    out = dict(parts)
+    for vital, (low, high) in limits.items():
+        value = values.get(vital)
+        if value is None or (isinstance(value, float) and np.isnan(value)):
+            out[vital] = 0
+            continue
+        inside = (low is None or value >= low) and (high is None or value <= high)
+        out[vital] = 0 if inside else RED_SCORE
+    return out
+
+
+def status_from_points(points: dict) -> tuple[int, str]:
+    """(total, label) from points per vital, one reading."""
+    total = int(sum(points.values()))
+    if total >= CRITICAL_TOTAL or max(points.values(), default=0) >= RED_SCORE:
+        return total, "Critical"
+    return total, ("Warning" if total >= WARNING_TOTAL else "Normal")

@@ -101,5 +101,54 @@ class HistoryOut(BaseModel):
     alerts: list[AlertOut]
 
 
-class AcknowledgeIn(BaseModel):
-    clinician_id: str  # from the login token in Sprint 3
+class LoginIn(BaseModel):
+    username: str = Field(min_length=1, max_length=32)
+    password: str = Field(min_length=1, max_length=200)
+
+
+class TokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"  # noqa: S105 (not a secret)
+    expires_in: int  # seconds
+    clinician_id: str
+    name: str
+    role: str
+
+
+class PatientSummary(PatientOut):
+    latest_status: str | None = None
+    latest_at: datetime | None = None
+    open_alert: bool = False
+
+
+class ThresholdIn(BaseModel):
+    low: float | None = None
+    high: float | None = None
+    reason: str = Field(min_length=3, max_length=300)
+
+
+class ThresholdOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    vital: str
+    low: float | None
+    high: float | None
+    reason: str
+    set_by: str
+    set_at: datetime
+
+
+class ThresholdsOut(BaseModel):
+    patient_id: str
+    spo2_scale: int
+    limits: list[ThresholdOut]
+    defaults: dict  # the default NEWS2-inspired bands: [highest value in band, points]
+
+
+class AuditOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    at: datetime
+    actor: str
+    action: str
+    patient_id: str | None
+    outcome: str
+    detail: str

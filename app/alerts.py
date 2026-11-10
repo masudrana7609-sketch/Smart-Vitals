@@ -122,8 +122,9 @@ def on_reading(
 
 
 def _latest_status(session: Session, patient_id: str) -> str | None:
-    return session.scalar(select(Reading.status).where(Reading.patient_id == patient_id)
-                          .order_by(Reading.measured_at.desc()).limit(1))
+    return session.scalar(
+        select(Reading.status).where(Reading.patient_id == patient_id).order_by(Reading.measured_at.desc()).limit(1)
+    )
 
 
 def due_reminders(session: Session, now: datetime, settings) -> list[Notification]:

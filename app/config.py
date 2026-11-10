@@ -10,6 +10,16 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = "sqlite:///./data/smartvitals.db"
+
+    # Security (R5). SECRET_KEY signs login tokens; INGEST_KEY lets devices post readings over HTTP.
+    secret_key: str = ""
+    access_token_minutes: int = 30
+    ingest_key: str = ""
+    cors_origins: list[str] = ["http://localhost:5173"]  # the dashboard during development
+    login_max_failures: int = 5  # per login name, within login_lock_minutes
+    login_lock_minutes: int = 15
+    demo_clinician_password: str = ""  # used only by app.seed
+    demo_admin_password: str = ""
     model_path: str = "models/model_v2.joblib"
 
     mqtt_host: str = "localhost"

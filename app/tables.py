@@ -10,9 +10,13 @@ from app.db import Base
 
 
 class Clinician(Base):
+    """A user of the dashboard: a clinician, or an admin who manages thresholds and reads the audit log."""
+
     __tablename__ = "clinicians"
-    id: Mapped[str] = mapped_column(String(16), primary_key=True)
+    id: Mapped[str] = mapped_column(String(16), primary_key=True)  # also the login name
     name: Mapped[str] = mapped_column(String(100))
+    role: Mapped[str] = mapped_column(String(12), default="clinician")  # "clinician" or "admin"
+    password_hash: Mapped[str | None] = mapped_column(String(200))  # argon2; never the password itself
 
 
 class Patient(Base):
@@ -87,3 +91,31 @@ class Notification(Base):
     kind: Mapped[str] = mapped_column(String(12))  # "new", "reminder", "escalation"
     sent_at: Mapped[datetime] = mapped_column(DateTime)
     message: Mapped[str] = mapped_column(String(500))
+
+
+class PatientThreshold(Base):
+    """A clinician's personal alert limits for one vital of one patient (R10)."""
+
+    __tablename__ = "patient_thresholds"
+    __table_args__ = (Index("ux_threshold_patient_vital", "patient_id", "vital", unique=True),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    patient_id: Mapped[str] = mapped_column(ForeignKey("patients.id"))
+    vital: Mapped[str] = mapped_column(String(16))
+    low: Mapped[float | None] = mapped_column(Float)
+    high: Mapped[float | None] = mapped_column(Float)
+    reason: Mapped[str] = mapped_column(String(300))
+    set_by: Mapped[str] = mapped_column(String(16))
+    set_at: Mapped[datetime] = mapped_column(DateTime)
+
+
+class AuditEvent(Base):
+    """Who looked at or changed what, and when (R5). Times are the server's real clock, in UTC."""
+
+    __tablename__ = "audit_events"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    actor: Mapped[str] = mapped_column(String(32))  # clinician ID, or the login name tried
+    action: Mapped[str] = mapped_column(String(32))  # e.g. "login", "history.view", "threshold.set"
+    patient_id: Mapped[str | None] = mapped_column(String(16), index=True)
+    outcome: Mapped[str] = mapped_column(String(12))  # "ok", "denied", "failed"
+    detail: Mapped[str] = mapped_column(String(300), default="")
