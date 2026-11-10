@@ -25,12 +25,18 @@ Also tried (see the results file): the rule on the single reading (recall 0.929)
 
 ## Comparison 2: where does the processing happen?
 
-| Criterion | Edge (wearable or phone) | Cloud | Split (my design?) |
-|---|---|---|---|
-| Time from a Critical reading to an alert | | | |
-| Works when the network drops (R9) | | | |
-| Privacy: what raw data leaves the patient | | | |
-| Battery, cost and carbon | | | |
-| Ease of updating the model | | | |
+Evidence: `docs/results/edge_cloud.md`, `docs/results/docker_compose.md`, `tools/edge_benchmark.py`.
 
-**Decision and justification:**
+| Criterion | Edge (wearable or phone) | Cloud | Split (my design) |
+|---|---|---|---|
+| Time from a Critical reading to an alert | Fastest: no network hop. The classifier takes about 4-8 ms per reading (84 ms at the 95th percentile on a quarter of a CPU core) | Network hop plus about 8 ms processing; about 118 readings a second through broker, ingest and Postgres | As cloud. Both wait 1-3 readings for the last-5 median (A21) |
+| Works when the network drops (R9) | Yes: it can alert on the phone | No alert during the outage; nothing lost with store-and-forward (0 of 1,777 lost in a 20 s outage, against 1,420 lost without it) | Edge checks and buffering; alerts once the connection returns |
+| Privacy: what raw data leaves the patient | Only alerts or summaries | Every reading (245 bytes a minute) | Every reading, over an authenticated broker; TLS needed in a real deployment |
+| Battery, cost and carbon | Model is tiny (0.38 MB) but Python needs about 160 MB of memory: fine for a phone or gateway, too much for a wearable without exporting the model; phone battery used | 352 KB per patient per day sent; one shared server (a few containers, about 0.5 GB of memory in total) | As cloud; the edge does only cheap checks |
+| Ease of updating the model | Hard: every device must be updated, and versions drift | Easy: one container; every reading records `model_version` | Easy for the model; device checks change rarely |
+
+**Decision and justification:** *(notes from Claude; rewrite in your own words)*
+- Keep the split design: the edge (wearable and gateway) does validity checks and **store-and-forward**; the cloud runs the model, stores history and alerts.
+- Speed does not decide it (milliseconds everywhere). Updating, auditing and history do: one cloud model is easy to update and audit, and the dashboard needs every reading for trends (R6, R8).
+- The outage experiment shows the cloud design's real weakness: during an outage nothing is lost, but no alert can fire. The best next step is a hybrid: the phone or gateway runs model v2 (it fits) only while offline, and the cloud stays the source of truth.
+- Sending everything costs 352 KB per patient per day; an alerts-and-summaries edge design would send 92% less but lose minute-level trends and retraining data. For 30 patients that is about 10 MB a day, which is affordable, so trends win.

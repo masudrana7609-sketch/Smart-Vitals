@@ -58,5 +58,14 @@ npm run dev     # http://localhost:5173 (the API must be running on port 8000)
 npm test
 ```
 
-## Later
-Docker setup will be added here in Sprint 4.
+## Docker (the whole system)
+
+Install Docker Desktop and start it. If `docker` is "command not found", tick *Settings, Advanced, System* (install the command-line tools), or use `/Applications/Docker.app/Contents/Resources/bin/docker`.
+
+```bash
+cp .env.example .env        # fill in every secret; generate each with:
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+docker compose up --build                 # dashboard http://localhost:8080, API http://localhost:8000/docs
+docker compose --profile demo up --build  # ... plus the simulator streaming 30 patients over MQTT
+docker compose down          # stop (add -v to delete the database and broker data too)
+```

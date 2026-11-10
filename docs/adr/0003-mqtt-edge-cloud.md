@@ -21,7 +21,7 @@ MQTT with QoS 1 (it is built for small, unreliable devices, and it builds on the
 - The ingest service acknowledges a message to the broker only after storing it, so a crash means redelivery, not loss; the duplicate check makes redelivery safe.
 - Throughput over HTTP on a laptop: about 92 messages a second (10,903 in 118 s), three times what 30 patients at 60x need.
 - Time from the first Critical reading to an alert: 1-3 readings (the last-5 median needs to move); in the scenario, 2 simulated minutes.
-- To add in S4: behaviour when the broker restarts (Docker). Comparison table in `docs/approaches.md` (Comparison 2).
+- Sprint 4, in Docker with Mosquitto: a 20 s broker outage lost 1,420 of 1,777 readings until the device got store-and-forward, then 0; a burst beyond Mosquitto's default 1,000-message queue was silently dropped until the queue was raised (ADR 8, `docs/results/docker_compose.md`). Edge versus cloud measured in `docs/results/edge_cloud.md` and compared in `docs/approaches.md`. Comparison table in `docs/approaches.md` (Comparison 2).
 
 ## Consequences
 - **Better:** devices stay simple; the model can be updated in one place; T10 tests a real failure mode.

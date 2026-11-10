@@ -48,4 +48,6 @@ python -m simulator.cli patients && python -m app.seed data/demo/sim_patients.cs
 uvicorn app.main:create_app --factory --reload                  # API
 python -m simulator.cli live --transport http                   # or: scenario; or --transport mqtt + app.mqtt_ingest
 cd dashboard && npm install && npm run dev && npm test          # dashboard on :5173
+docker compose --profile demo up --build                        # everything, http://localhost:8080
+python tools/edge_benchmark.py                                  # edge timing (Comparison 2)
 ```

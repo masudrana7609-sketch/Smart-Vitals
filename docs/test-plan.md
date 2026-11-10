@@ -15,7 +15,7 @@ Write the tests **before** you build each part, then fill in the results with sc
 | T9 | R9 | An impossible value arrives (e.g. heart rate 250) | Flagged as a sensor error, no Critical alert | `test_T9_...`: HR 250 and SpO2 0 flagged `sensor_error`, stored as missing, no alert | Yes |
 | T10 | R9 | The same message arrives twice (MQTT QoS 1) | One alert only (Week 7: idempotency) | `test_T10_...` (HTTP) and `test_scenario_over_mqtt_...` (real broker): stored once, one alert | Yes |
 | T11 | R10 | Change the threshold for P001 only | Alerts change for P001, not for other patients | `test_T11_...`: HR limit 100 for P001: P001 alerted, P002 not, same readings; `test_personal_limits_stop_the_P005_false_alarm` | Yes |
-| T12 | R11 | `docker compose up` on a clean machine | All services start; the API answers | | |
+| T12 | R11 | `docker compose up` on a clean machine | All services start; the API answers | `docs/results/docker_compose.md`: 7 services up in 28 s, health checks pass, dashboard and API answer | Yes |
 | T13 | R1 | Generate patients; recompute each risk group from the documented rule | Every patient has a risk group that matches `src/risk.py`, and a clinician (≥ 3 clinicians) | `pytest tests/test_simulator.py` | Yes |
 | T14 | R2 | Run the simulator twice with the same seed, and once with another | Identical output for the same seed; one reading per patient per minute; glucose only for diabetics | `pytest tests/test_simulator.py` | Yes |
 | T15 | R9 | Run the simulator with raised fault rates | Each fault happens at about its configured rate and is recorded in the ground truth; impossible values only where recorded | `pytest tests/test_simulator.py` | Yes |
@@ -23,5 +23,8 @@ Write the tests **before** you build each part, then fill in the results with sc
 | T17 | R9 | 10 identical heart-rate values in a row | Flagged `stuck:heart_rate`, value ignored | `test_stuck_sensor_is_flagged_and_ignored` | Yes |
 | T18 | R5 | Logins, tokens, ingest key, audit log | Unauthenticated, forged or expired access refused; passwords hashed; changes and refusals audited | `tests/test_security.py` (21 tests) | Yes |
 | T19 | R8 | Dashboard components | Status shown with icon and word; patients sorted by urgency; login errors shown | `dashboard/src/__tests__` (7 tests, `npm test`) | Yes |
+| T20 | R7 | Retention: readings older than 30 days, alerts and audit events older than a year | Deleted; alerts keep their vitals; the purge is audited; recent data kept | `tests/test_retention.py` (3 tests) | Yes |
+| T21 | R9 | The connection drops while a device is sending | No reading lost; all stored after reconnecting | `test_device_keeps_readings_while_the_broker_is_unreachable`; Docker: 20 s broker outage, 1,777 of 1,777 stored | Yes |
+| T22 | R3, Output 3 | Fairness: every patient tested once, unseen; results by group | Recall for Critical at least 0.90 in every group | `notebooks/03_fairness.ipynb`, `docs/results/fairness.md`: 0.937-0.982 by group (overall 0.970); the youngest group's interval reaches 0.893 | Yes, with that caveat |
 
 Automatic tests live in `tests/` and run with `pytest`. Add one each time you find a bug, so it cannot come back.
