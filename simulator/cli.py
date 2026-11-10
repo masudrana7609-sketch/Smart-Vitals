@@ -2,8 +2,9 @@
 
     python -m simulator.cli batch                      # 80 patients x 3 days, seed 42, into data/
     python -m simulator.cli batch --patients 10 --days 1 --seed 7 --out /tmp/sim
-    python -m simulator.cli live                       # Sprint 2: publish readings over MQTT
-    python -m simulator.cli scenario                   # Sprint 2: scripted demo cases (T3, T7-T11)
+    python -m simulator.cli patients                   # the live demo's 30 patients -> data/demo/
+    python -m simulator.cli live --transport http      # stream them to the API (or --transport mqtt)
+    python -m simulator.cli scenario --patient P001    # scripted story: T3, T7-T10
 
 batch writes three files:
 - sim_patients.csv      one row per patient (conditions, history, risk group, clinician, baselines)
@@ -125,9 +126,66 @@ def cmd_batch(args) -> int:
     return 0
 
 
-def cmd_not_yet(args) -> int:
-    print(f"'{args.mode}' mode is built in Sprint 2 (MQTT feed and demo scenarios).", file=sys.stderr)
-    return 2
+def _config(args) -> SimConfig:
+    faults = FaultRates() if getattr(args, "faults", True) else FaultRates(0, 0, 0, 0, 0, 0)
+    return SimConfig(
+        n_patients=args.patients,
+        n_clinicians=args.clinicians,
+        days=args.days,
+        seed=args.seed,
+        start=args.start,
+        faults=faults,
+    )
+
+
+def cmd_patients(args) -> int:
+    from simulator.patients import generate_patients
+
+    cfg = _config(args)
+    patients = generate_patients(cfg, np.random.default_rng(cfg.seed))  # same patients as batch and live
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    patients.to_csv(out / "sim_patients.csv", index=False)
+    print(f"written: {out / 'sim_patients.csv'} ({len(patients)} patients). Load them with:")
+    print(f"  python -m app.seed {out / 'sim_patients.csv'}")
+    return 0
+
+
+def _sender(args):
+    from simulator.live import HttpSender, MqttSender
+
+    if args.transport == "mqtt":
+        return MqttSender(args.mqtt_host, args.mqtt_port, args.topic)
+    return HttpSender(args.api_url)
+
+
+def cmd_live(args) -> int:
+    from simulator.live import payloads, stream
+
+    _, delivered, _ = run_batch(_config(args))
+    print(f"streaming {len(delivered)} messages over {args.transport} at {args.speedup}x (Ctrl+C to stop)")
+    try:
+        results = stream(payloads(delivered), _sender(args), args.speedup, limit=args.limit)
+    except KeyboardInterrupt:
+        print("stopped")
+        return 0
+    print("results:", dict(results))
+    return 0
+
+
+def cmd_scenario(args) -> int:
+    from simulator import scenario
+    from simulator.live import stream
+
+    patients = pd.read_csv(args.patients_csv).set_index("patient_id", drop=False)
+    if args.patient not in patients.index:
+        print(f"unknown patient {args.patient}", file=sys.stderr)
+        return 2
+    messages = scenario.build(patients.loc[args.patient].to_dict(), args.start)
+    print(scenario.__doc__)
+    results = stream(messages, _sender(args), args.speedup)
+    print("results:", dict(results))
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -141,8 +199,40 @@ def build_parser() -> argparse.ArgumentParser:
     batch.add_argument("--start", default="2026-01-05T00:00:00Z", help="simulated start time (UTC)")
     batch.add_argument("--out", default="data", help="folder for the CSV files")
     batch.set_defaults(func=cmd_batch)
-    for mode in ("live", "scenario"):
-        modes.add_parser(mode, help="Sprint 2").set_defaults(func=cmd_not_yet)
+
+    def population(p, patients, days):
+        p.add_argument("--patients", type=int, default=patients)
+        p.add_argument("--clinicians", type=int, default=3)
+        p.add_argument("--days", type=float, default=days)
+        p.add_argument("--seed", type=int, default=3)  # 30 patients incl. one SpO2 Scale 2
+        p.add_argument("--start", default="2026-01-05T00:00:00Z", help="simulated start time (UTC)")
+
+    def transport(p):
+        p.add_argument("--transport", choices=["mqtt", "http"], default="mqtt")
+        p.add_argument("--api-url", default="http://localhost:8000")
+        p.add_argument("--mqtt-host", default="localhost")
+        p.add_argument("--mqtt-port", type=int, default=1883)
+        p.add_argument("--topic", default="smartvitals/readings")
+        p.add_argument("--speedup", type=float, default=60, help="60: one simulated minute per second; 0: no waiting")
+
+    pats = modes.add_parser("patients", help="write the live demo's patients, to load with app.seed")
+    population(pats, 30, 1)
+    pats.add_argument("--out", default="data/demo")
+    pats.set_defaults(func=cmd_patients)
+
+    live = modes.add_parser("live", help="stream readings to the system over MQTT or HTTP")
+    population(live, 30, 1)
+    transport(live)
+    live.add_argument("--no-faults", dest="faults", action="store_false", help="turn off the built-in faults")
+    live.add_argument("--limit", type=int, default=None, help="stop after this many messages")
+    live.set_defaults(func=cmd_live)
+
+    scen = modes.add_parser("scenario", help="scripted story for one patient: T3, T7-T10")
+    scen.add_argument("--patients-csv", default="data/demo/sim_patients.csv")
+    scen.add_argument("--patient", default="P001")
+    scen.add_argument("--start", default="2026-01-06T00:00:00Z", help="after the live feed's last reading")
+    transport(scen)
+    scen.set_defaults(func=cmd_scenario)
     return parser
 
 

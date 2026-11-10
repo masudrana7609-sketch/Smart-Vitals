@@ -235,8 +235,3 @@ def test_cli_batch_writes_the_three_files(tmp_path, capsys):
         assert (tmp_path / name).stat().st_size > 0
     assert "status" in pd.read_csv(tmp_path / "sim_vitals.csv").columns
     assert "fault_type" not in pd.read_csv(tmp_path / "sim_vitals.csv").columns  # ground truth only
-
-
-@pytest.mark.parametrize("mode", ["live", "scenario"])
-def test_live_and_scenario_are_not_built_yet(mode):
-    assert main([mode]) == 2
