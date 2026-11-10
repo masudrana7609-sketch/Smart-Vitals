@@ -43,4 +43,8 @@ Stop for the student's review at the end of each sprint.
 source .venv/bin/activate      # setup: docs/dev-setup.md
 pytest                         # tests
 ruff check . && ruff format .  # lint and format
+python -m simulator.cli batch                                   # training data (seed 42)
+python -m simulator.cli patients && python -m app.seed data/demo/sim_patients.csv
+uvicorn app.main:create_app --factory --reload                  # API
+python -m simulator.cli live --transport http                   # or: scenario; or --transport mqtt + app.mqtt_ingest
 ```
