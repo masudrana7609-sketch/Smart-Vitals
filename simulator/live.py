@@ -8,6 +8,7 @@ time, so the server can measure lateness in simulated time (A20).
 import json
 import logging
 import math
+import threading
 import time
 from collections import Counter
 from collections.abc import Callable, Iterable, Iterator
@@ -71,7 +72,11 @@ class HttpSender:
 
 
 class MqttSender:
-    """Publish each message to <topic>/<device_id> with QoS 1 (delivered at least once)."""
+    """Publish each message to <topic>/<device_id> with QoS 1 (delivered at least once).
+
+    Store-and-forward: if the broker cannot be reached, messages are kept on the device (in memory) and sent
+    once the connection comes back (paho reconnects by itself). close() waits until the broker has
+    acknowledged every message. A real wearable or gateway would keep this buffer on disk."""
 
     def __init__(
         self,
@@ -88,14 +93,49 @@ class MqttSender:
         self.client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2, client_id=client_id)
         if username:
             self.client.username_pw_set(username, password)
+        self.mqtt = mqtt
+        self.unacked: set[int] = set()  # message IDs the broker has not yet acknowledged
+        self.lock = threading.Lock()
+
+        self.acked_early: set[int] = set()  # acknowledged before __call__ recorded them
+
+        def on_publish(client, userdata, mid, reason_code, properties):
+            with self.lock:
+                if mid in self.unacked:
+                    self.unacked.discard(mid)
+                else:
+                    self.acked_early.add(mid)
+
+        self.client.on_publish = on_publish
+        self.client.reconnect_delay_set(min_delay=1, max_delay=10)
         self.client.connect(host, port, keepalive=30)
         self.client.loop_start()
 
     def __call__(self, message: dict) -> str:
+        # never hold self.lock while publishing: paho's network thread needs it to report acknowledgements
         info = self.client.publish(f"{self.topic}/{message['device_id']}", json.dumps(message), qos=1)
-        info.wait_for_publish(timeout=10)
-        return "published" if info.is_published() else "not_published"
+        if info.rc in (self.mqtt.MQTT_ERR_SUCCESS, self.mqtt.MQTT_ERR_NO_CONN):
+            with self.lock:
+                if info.mid in self.acked_early:
+                    self.acked_early.discard(info.mid)
+                else:
+                    self.unacked.add(info.mid)
+        if info.rc == self.mqtt.MQTT_ERR_SUCCESS:
+            return "sent"
+        if info.rc == self.mqtt.MQTT_ERR_NO_CONN:
+            return "buffered"  # kept by the client and sent after reconnecting
+        return f"error_{info.rc}"
 
-    def close(self) -> None:
+    def unacknowledged(self) -> int:
+        with self.lock:
+            return len(self.unacked)
+
+    def close(self, timeout: float = 120) -> int:
+        """Wait until the broker has acknowledged everything (or timeout). Returns how many were not."""
+        end = time.monotonic() + timeout
+        while self.unacknowledged() and time.monotonic() < end:
+            time.sleep(0.2)
+        left = self.unacknowledged()
         self.client.loop_stop()
         self.client.disconnect()
+        return left

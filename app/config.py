@@ -34,7 +34,12 @@ class Settings(BaseSettings):
     late_after_minutes: float = 2  # a reading arriving later than this is flagged "late"
     late_alert_max_minutes: float = 30  # a reading older than this on arrival is stored but raises no new alert
     stuck_readings: int = 10  # this many identical values in a row: the sensor is treated as stuck
-    rule_safety_net: bool = True  # the NEWS2-inspired rule on the last-5 median can also call Critical
+    rule_safety_net: bool = True
+
+    # Storage limitation (UK GDPR, A7): how long each kind of record is kept, then deleted by app.retention
+    readings_retention_days: float = 30
+    alerts_retention_days: float = 365
+    audit_retention_days: float = 365  # the NEWS2-inspired rule on the last-5 median can also call Critical
 
     # "feed": the simulator's clock (sent_at in each message) drives lateness and reminders (A20).
     # "wall": the server's own clock, for real devices.

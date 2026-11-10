@@ -32,6 +32,10 @@ Every reading, whether it arrives over MQTT or HTTP, goes through `pipeline.py`:
 - **Audit log** (`audit.py`, `GET /audit`, admin only): every login (and failed login), view, change and refused access. Repeated views are logged once per 5 minutes so the dashboard's refreshes do not bury the rest.
 - **Per-patient alert limits** (R10): `GET/PUT/DELETE /patients/{id}/thresholds/{vital}`, with a required reason; see ADR 7.
 
+## Retention (R7)
+
+`retention.py` deletes readings older than 30 days, and alerts, notifications and audit events older than 365 days (settings `READINGS_RETENTION_DAYS`, `ALERTS_RETENTION_DAYS`, `AUDIT_RETENTION_DAYS`). An alert keeps its own copy of the vitals, so deleting the reading behind it loses nothing the clinician was told. Each run is audited. In Docker it runs every hour.
+
 Not in the prototype (see the report): HTTPS/TLS between services (Sprint 4 notes), multi-factor login, token revocation, encryption of the database at rest.
 
 ## Run it

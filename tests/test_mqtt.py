@@ -94,8 +94,8 @@ def test_scenario_over_mqtt_stores_each_message_once_and_alerts_once(system, bro
         sender = MqttSender("127.0.0.1", broker_port, settings.mqtt_topic, client_id="test-simulator")
         messages = scenario.build(PATIENTS.iloc[0].to_dict())
         results = stream(messages, sender, speedup=0)
-        sender.close()
-        assert results == {"published": len(messages)}  # 27 messages, one of them a duplicate
+        assert sender.close() == 0  # the broker acknowledged every message
+        assert results == {"sent": len(messages)}  # 27 messages, one of them a duplicate
 
         def stored():
             with sessions() as s:
@@ -107,6 +107,33 @@ def test_scenario_over_mqtt_stores_each_message_once_and_alerts_once(system, bro
             assert s.scalar(select(func.count(Reading.id))) == 26
             assert s.scalar(select(func.count(Alert.id))) == 1
         assert [n.kind for n in notifier.sent] == ["new"]
+    finally:
+        ingest.loop_stop()
+        ingest.disconnect()
+
+
+def test_device_keeps_readings_while_the_broker_is_unreachable(system, broker_port):
+    """Store-and-forward (R9): a device that loses the broker keeps its readings and sends them later."""
+    settings, sessions, classifier, notifier = system
+    ingest = make_client(sessions, classifier, settings, notifier, client_id="test-ingest-2")
+    ingest.connect("127.0.0.1", broker_port)
+    ingest.loop_start()
+    try:
+        assert _wait_for(lambda: ingest.is_connected())
+        time.sleep(0.5)
+        sender = MqttSender("127.0.0.1", broker_port, settings.mqtt_topic, client_id="test-simulator-2")
+        assert _wait_for(lambda: sender.client.is_connected())
+        messages = scenario.build(PATIENTS.iloc[1].to_dict())
+        sender.client.socket().shutdown(socket.SHUT_RDWR)  # the connection drops under the device
+        assert _wait_for(lambda: not sender.client.is_connected(), timeout=5)
+        stream(messages, sender, speedup=0)  # published while offline or reconnecting: kept, not lost
+        assert sender.close(timeout=30) == 0  # paho reconnected by itself and the broker acknowledged all
+
+        def stored():
+            with sessions() as s:
+                return s.scalar(select(func.count(Reading.id)))
+
+        assert _wait_for(lambda: stored() == 26), f"stored {stored()} of 26"
     finally:
         ingest.loop_stop()
         ingest.disconnect()

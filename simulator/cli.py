@@ -171,12 +171,17 @@ def cmd_live(args) -> int:
 
     _, delivered, _ = run_batch(_config(args))
     print(f"streaming {len(delivered)} messages over {args.transport} at {args.speedup}x (Ctrl+C to stop)")
+    sender = _sender(args)
     try:
-        results = stream(payloads(delivered), _sender(args), args.speedup, limit=args.limit)
+        results = stream(payloads(delivered), sender, args.speedup, limit=args.limit)
     except KeyboardInterrupt:
         print("stopped")
-        return 0
-    print("results:", dict(results))
+        results = None
+    if hasattr(sender, "close"):
+        unacknowledged = sender.close()
+        print(f"unacknowledged by the broker: {unacknowledged}")
+    if results is not None:
+        print("results:", dict(results))
     return 0
 
 
@@ -190,7 +195,10 @@ def cmd_scenario(args) -> int:
         return 2
     messages = scenario.build(patients.loc[args.patient].to_dict(), args.start)
     print(scenario.__doc__)
-    results = stream(messages, _sender(args), args.speedup)
+    sender = _sender(args)
+    results = stream(messages, sender, args.speedup)
+    if hasattr(sender, "close"):
+        print(f"unacknowledged by the broker: {sender.close()}")
     print("results:", dict(results))
     return 0
 

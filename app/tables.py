@@ -66,7 +66,8 @@ class Alert(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     patient_id: Mapped[str] = mapped_column(ForeignKey("patients.id"), index=True)
     clinician_id: Mapped[str] = mapped_column(ForeignKey("clinicians.id"), index=True)
-    reading_id: Mapped[int] = mapped_column(ForeignKey("readings.id"))
+    # the Critical reading; emptied when retention deletes the reading (the alert keeps its own copy of the vitals)
+    reading_id: Mapped[int | None] = mapped_column(ForeignKey("readings.id"))
     kind: Mapped[str] = mapped_column(String(12))  # "new" or "escalation"
     state: Mapped[str] = mapped_column(String(12), index=True)  # "open", "acknowledged", "superseded"
     raised_at: Mapped[datetime] = mapped_column(DateTime)  # the Critical reading's measured time
