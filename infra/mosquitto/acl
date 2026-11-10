@@ -1,0 +1,6 @@
+# Devices may only publish readings; the ingest service may only read them.
+user devices
+topic write smartvitals/readings/#
+
+user ingest
+topic read smartvitals/readings/#

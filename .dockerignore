@@ -1,0 +1,17 @@
+# Only app/, src/, simulator/ and models/model_v2.* go into the Python image
+.git
+.venv
+venv
+.env
+.env.*
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+dashboard
+data
+docs
+notebooks
+tests
+infra
+models/first_model.*
+*.db

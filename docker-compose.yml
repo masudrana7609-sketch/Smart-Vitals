@@ -1,0 +1,121 @@
+# Smart Vitals: the whole system in containers (R11, T12).
+#
+#   cp .env.example .env     # and fill in every secret
+#   docker compose up --build                    # db, mqtt, api, ingest, retention, dashboard
+#   docker compose --profile demo up --build     # ... plus the simulator streaming 30 patients over MQTT
+#
+# Dashboard: http://localhost:8080   API: http://localhost:8000/docs
+# Only those two ports are published, and only on this machine; the database and broker are on an
+# internal network with no route to the outside.
+
+name: smartvitals
+
+x-python-service: &python-service
+  build: .
+  image: smartvitals-python:0.4
+  restart: unless-stopped
+  networks: [backend]
+  environment: &python-env
+    DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-smartvitals}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-smartvitals}
+    SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+    INGEST_KEY: ${INGEST_KEY:-}
+    CLOCK: feed
+    MQTT_HOST: mqtt
+    MQTT_PORT: "1883"
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-smartvitals}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-smartvitals}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  mqtt:
+    image: eclipse-mosquitto:2.0
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/mosquitto/config/start.sh"]
+    environment:
+      MQTT_DEVICE_PASSWORD: ${MQTT_DEVICE_PASSWORD:?set MQTT_DEVICE_PASSWORD in .env}
+      MQTT_INGEST_PASSWORD: ${MQTT_INGEST_PASSWORD:?set MQTT_INGEST_PASSWORD in .env}
+    volumes:
+      - ./infra/mosquitto:/mosquitto/config:ro
+      - mqttdata:/mosquitto/data
+    networks: [backend]
+
+  seed:  # one-off: creates the tables and loads the 30 demo patients with their logins
+    <<: *python-service
+    restart: "no"
+    command: ["sh", "-c", "python -m simulator.cli patients --out /tmp/demo && python -m app.seed /tmp/demo/sim_patients.csv"]
+    environment:
+      <<: *python-env
+      DEMO_CLINICIAN_PASSWORD: ${DEMO_CLINICIAN_PASSWORD:?set DEMO_CLINICIAN_PASSWORD in .env}
+      DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:?set DEMO_ADMIN_PASSWORD in .env}
+    depends_on:
+      db: {condition: service_healthy}
+
+  api:
+    <<: *python-service
+    networks: [backend, frontend]
+    ports: ["127.0.0.1:8000:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    depends_on:
+      seed: {condition: service_completed_successfully}
+
+  ingest:
+    <<: *python-service
+    command: ["python", "-m", "app.mqtt_ingest"]
+    environment:
+      <<: *python-env
+      MQTT_USERNAME: ingest
+      MQTT_PASSWORD: ${MQTT_INGEST_PASSWORD:?set MQTT_INGEST_PASSWORD in .env}
+    depends_on:
+      seed: {condition: service_completed_successfully}
+      mqtt: {condition: service_started}
+
+  retention:
+    <<: *python-service
+    command: ["python", "-m", "app.retention", "--every", "3600"]
+    depends_on:
+      seed: {condition: service_completed_successfully}
+
+  dashboard:
+    build: ./dashboard
+    image: smartvitals-dashboard:0.4
+    restart: unless-stopped
+    networks: [frontend]
+    ports: ["127.0.0.1:8080:80"]
+    depends_on:
+      api: {condition: service_healthy}
+
+  simulator:  # only with --profile demo
+    <<: *python-service
+    profiles: [demo]
+    restart: "no"
+    command: ["python", "-m", "simulator.cli", "live", "--transport", "mqtt", "--mqtt-host", "mqtt"]
+    environment:
+      MQTT_USERNAME: devices
+      MQTT_PASSWORD: ${MQTT_DEVICE_PASSWORD:?set MQTT_DEVICE_PASSWORD in .env}
+    depends_on:
+      ingest: {condition: service_started}
+
+networks:
+  backend:
+    internal: true  # db, broker and services: no route to or from the outside
+  frontend: {}
+
+volumes:
+  pgdata:
+  mqttdata:
